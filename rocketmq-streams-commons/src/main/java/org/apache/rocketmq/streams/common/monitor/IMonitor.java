@@ -28,15 +28,40 @@ import org.apache.rocketmq.streams.common.utils.MapKeyUtil;
  * name 的推荐用法，是层级关系，如pipline.name.channel.name/pipline.name.stage.name/channel.name.rule.name/channel.name.rule.name.expression.name
  */
 public interface IMonitor {
-    String MONTIOR_NAME = "monitor_name";
-    String MONITOR_SUCCESS = "monitor_success";//监控中是否有错误
-    String MONITOR_COST = "monitor_cost";//花费时间
-    String MONTIOR_SLOW = "monitor_slow";//是否是慢查询
-    String MONITOR_ERROR_MSG = "monitor_error_msgs";//如果发生错误，具体的错误信息
-    String MONITOR_CONTEXT_MSG = "monitor_context_msgs";//监控对应的上下文
-    String MONITOR_CHILDREN = "monitor_children";//监控对应的上下文
-    String MONITOR_SAMPLE_DATA = "monitor_sample_data";//采样数据
-    String MONITOR_RESULT = "monitor_result";//本次执行的结果
+
+    String MONITOR_NAME = "monitor_name";
+    /**
+     * 监控中是否有错误
+     */
+    String MONITOR_SUCCESS = "monitor_success";
+    /**
+     * 花费时间
+     */
+    String MONITOR_COST = "monitor_cost";
+    /**
+     * 是否是慢查询
+     */
+    String MONITOR_SLOW = "monitor_slow";
+    /**
+     * 如果发生错误，具体的错误信息
+     */
+    String MONITOR_ERROR_MSG = "monitor_error_msgs";
+    /**
+     * 监控对应的上下文
+     */
+    String MONITOR_CONTEXT_MSG = "monitor_context_msgs";
+    /**
+     * 监控对应的上下文
+     */
+    String MONITOR_CHILDREN = "monitor_children";
+    /**
+     * 采样数据
+     */
+    String MONITOR_SAMPLE_DATA = "monitor_sample_data";
+    /**
+     * 本次执行的结果
+     */
+    String MONITOR_RESULT = "monitor_result";
     IMonitor NOTHING_MONITOR = new NothingMontior();
 
     String TYPE_STARTUP = "startup";
