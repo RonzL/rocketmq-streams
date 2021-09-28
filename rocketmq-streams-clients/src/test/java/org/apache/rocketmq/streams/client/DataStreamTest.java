@@ -18,11 +18,8 @@
 package org.apache.rocketmq.streams.client;
 
 import com.alibaba.fastjson.JSONObject;
-import netscape.javascript.JSObject;
 import org.apache.rocketmq.streams.client.source.DataStreamSource;
-import org.apache.rocketmq.streams.client.strategy.CheckpointStrategy;
-import org.apache.rocketmq.streams.client.strategy.StateStrategy;
-import org.apache.rocketmq.streams.client.strategy.Strategy;
+import org.apache.rocketmq.streams.client.strategy.WindowStrategy;
 import org.apache.rocketmq.streams.client.transform.window.Time;
 import org.apache.rocketmq.streams.client.transform.window.TumblingWindow;
 import org.apache.rocketmq.streams.common.functions.MapFunction;
@@ -31,7 +28,11 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.Serializable;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public class DataStreamTest implements Serializable {
 
@@ -53,11 +54,9 @@ public class DataStreamTest implements Serializable {
 
     @Test
     public void testRocketmq() {
-
-
         DataStreamSource dataStream = StreamBuilder.dataStream("test_namespace", "graph_pipeline");
         dataStream
-            .fromRocketmq("TOPIC_EVENT_SAS_SECURITY_EVENT", "111")
+            .fromRocketmq("topic_xxxx01", "consumer_xxxx01", "127.0.0.1:9876")
             .map(message -> message + "--")
             .toPrint(1)
             .start();
@@ -66,52 +65,64 @@ public class DataStreamTest implements Serializable {
     @Test
     public void testDBCheckPoint() {
         dataStream
-            .fromRocketmq("TSG_META_INFO", "")
+            .fromRocketmq("topic_xxxx02", "consumer_xxxx02", "127.0.0.1:9876")
             .map(message -> message + "--")
             .toPrint(1)
-            .with(CheckpointStrategy.db("", "", "", 0L))
+            .with(WindowStrategy.exactlyOnce("", "", ""))
             .start();
     }
 
     @Test
     public void testFileCheckPoint() {
         dataStream
-            .fromRocketmq("TSG_META_INFO", "")
+            .fromFile("/Users/junjie.cheng/text.txt", false)
             .map(message -> message + "--")
             .toPrint(1)
-            .with(CheckpointStrategy.mem(0L))
+            .with(WindowStrategy.highPerformance())
             .start();
     }
-
 
     @Test
     public void testWindow() {
         DataStreamSource dataStream = StreamBuilder.dataStream("test_namespace", "graph_pipeline");
         dataStream
-            .fromRocketmq("TSG_META_INFO", "")
+            .fromRocketmq("topic_xxxx03", "consumer_xxxx03", "127.0.0.1:9876")
             .map(new MapFunction<JSONObject, String>() {
 
                 @Override
                 public JSONObject map(String message) throws Exception {
-                    JSONObject msg=JSONObject.parseObject(message);
+                    JSONObject msg = JSONObject.parseObject(message);
                     return msg;
                 }
             })
             .window(TumblingWindow.of(Time.seconds(5)))
-            .groupBy("name","age")
+            .groupBy("name", "age")
             .count("c")
-            .sum("score","scoreValue")
+            .sum("score", "scoreValue")
             .toDataSteam()
             .toPrint(1)
-            .with(CheckpointStrategy.db("","","",1000L))
+            .with(WindowStrategy.exactlyOnce("", "", ""))
             .start();
+    }
+
+    @Test
+    public void testFingerPrintStrategy() {
+        dataStream
+            .fromFile("/Users/junjie.cheng/text.txt", false)
+            .map(message -> message + "--")
+            .toPrint(1)
+            .start();
+
     }
 
     @Test
     public void testBothStrategy() {
         dataStream
-            .fromRocketmq("TSG_META_INFO", "")
+            .fromRocketmq("topic_xxxx04", "consumer_xxxx04", "127.0.0.1:9876")
             .map(message -> message + "--")
+            .filter(message -> {
+                return true;
+            })
             .toPrint(1)
             .with()
             .start();

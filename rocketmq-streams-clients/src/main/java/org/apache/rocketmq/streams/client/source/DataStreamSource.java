@@ -17,25 +17,39 @@
 
 package org.apache.rocketmq.streams.client.source;
 
-import com.google.common.collect.Sets;
-import java.util.Set;
+import java.util.Properties;
+import javax.sql.DataSource;
 import org.apache.rocketmq.streams.client.transform.DataStream;
 import org.apache.rocketmq.streams.common.channel.impl.file.FileSource;
 import org.apache.rocketmq.streams.common.channel.source.ISource;
+import org.apache.rocketmq.streams.common.component.ComponentCreator;
 import org.apache.rocketmq.streams.common.topology.builder.PipelineBuilder;
 import org.apache.rocketmq.streams.source.RocketMQSource;
 
-public class DataStreamSource {
+import java.io.Serializable;
+
+public class DataStreamSource implements Serializable {
     protected PipelineBuilder mainPipelineBuilder;
-    protected Set<PipelineBuilder> otherPipelineBuilders;
 
     public DataStreamSource(String namespace, String pipelineName) {
         this.mainPipelineBuilder = new PipelineBuilder(namespace, pipelineName);
-        this.otherPipelineBuilders = Sets.newHashSet();
+    }
+
+    public DataStreamSource(String namespace, String pipelineName, String[] duplicateKeys, Long windowSize) {
+        this.mainPipelineBuilder = new PipelineBuilder(namespace, pipelineName);
+        Properties properties = new Properties();
+        properties.setProperty(pipelineName + ".duplicate.fields.names", String.join(";", duplicateKeys));
+        properties.setProperty(pipelineName + ".duplicate.expiration.time", String.valueOf(windowSize));
+        ComponentCreator.createProperties(properties);
     }
 
     public static DataStreamSource create(String namespace, String pipelineName) {
         return new DataStreamSource(namespace, pipelineName);
+    }
+
+    public static DataStreamSource create(String namespace, String pipelineName, String[] duplicateKeys,
+        Long expirationTime) {
+        return new DataStreamSource(namespace, pipelineName, duplicateKeys, expirationTime);
     }
 
     public DataStream fromFile(String filePath) {
@@ -46,30 +60,31 @@ public class DataStreamSource {
         FileSource fileChannel = new FileSource(filePath);
         fileChannel.setJsonData(isJsonData);
         this.mainPipelineBuilder.setSource(fileChannel);
-        return new DataStream(this.mainPipelineBuilder, this.otherPipelineBuilders, null);
+        return new DataStream(this.mainPipelineBuilder, null);
     }
 
-    public DataStream fromRocketmq(String topic, String groupName) {
-        return fromRocketmq(topic, groupName, null, false);
+    public DataStream fromRocketmq(String topic, String groupName, String namesrvAddress) {
+        return fromRocketmq(topic, groupName, false, namesrvAddress);
     }
 
-    public DataStream fromRocketmq(String topic, String groupName, boolean isJson) {
-        return fromRocketmq(topic, groupName, null, isJson);
+    public DataStream fromRocketmq(String topic, String groupName, boolean isJson, String namesrvAddress) {
+        return fromRocketmq(topic, groupName, "*", isJson, namesrvAddress);
     }
 
-    public DataStream fromRocketmq(String topic, String groupName, String tags, boolean isJson) {
+    public DataStream fromRocketmq(String topic, String groupName, String tags, boolean isJson, String namesrvAddress) {
         RocketMQSource rocketMQSource = new RocketMQSource();
         rocketMQSource.setTopic(topic);
         rocketMQSource.setTags(tags);
         rocketMQSource.setGroupName(groupName);
         rocketMQSource.setJsonData(isJson);
+        rocketMQSource.setNamesrvAddr(namesrvAddress);
         this.mainPipelineBuilder.setSource(rocketMQSource);
-        return new DataStream(this.mainPipelineBuilder, this.otherPipelineBuilders, null);
+        return new DataStream(this.mainPipelineBuilder, null);
     }
 
     public DataStream from(ISource<?> source) {
         this.mainPipelineBuilder.setSource(source);
-        return new DataStream(this.mainPipelineBuilder, this.otherPipelineBuilders, null);
+        return new DataStream(this.mainPipelineBuilder, null);
     }
 
 }

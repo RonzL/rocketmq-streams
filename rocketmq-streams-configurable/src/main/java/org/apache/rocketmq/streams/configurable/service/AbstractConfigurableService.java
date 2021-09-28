@@ -29,12 +29,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.avalon.framework.configuration.Configurable;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.rocketmq.streams.common.component.AbstractComponent;
 import org.apache.rocketmq.streams.common.configurable.AbstractConfigurable;
-import org.apache.rocketmq.streams.common.configurable.IAfterConfiguableRefreshListerner;
+import org.apache.rocketmq.streams.common.configurable.IAfterConfigurableRefreshListener;
 import org.apache.rocketmq.streams.common.configurable.IConfigurable;
 import org.apache.rocketmq.streams.common.configurable.IConfigurableService;
 import org.apache.rocketmq.streams.common.datatype.DataType;
@@ -55,6 +54,8 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
     protected Map<String, List<IConfigurable>> type2ConfigurableMap = new HashMap<>();
 
     protected Map<String, IConfigurable> name2ConfigurableMap = new HashMap<>();
+
+    protected Map<String, IConfigurable> configurableMap = new HashMap<>();
 
     protected Properties properties;
 
@@ -81,8 +82,8 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
             return;
         }
         configurable.toJson();
-        String key = MapKeyUtil.createKey(configurable.getType(), configurable.getConfigureName());
-        name2ConfigurableMap.put(key, configurable);
+        String key = getConfigureKey(configurable.getNameSpace(), configurable.getType(), configurable.getConfigureName());
+        configurableMap.put(key, configurable);
     }
 
     protected void updateConfiguresCache(List<IConfigurable> configureList) {
@@ -91,14 +92,17 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
         }
     }
 
-    protected boolean equals(String key, IConfigurable configure) {
-        String tempKey = MapKeyUtil.createKey(configure.getType(), configure.getConfigureName());
-        if (key.equals(tempKey)) {
-            IConfigurable oldConfigure = name2ConfigurableMap.get(key);
-            if (oldConfigure == null) {
-                return false;
+    protected boolean equals(String key, List<?> newConfigureList) {
+        for (Object o : newConfigureList) {
+            IConfigurable configure = (IConfigurable)o;
+            String tempKey = getConfigureKey(configure.getNameSpace(), configure.getType(), configure.getConfigureName());
+            if (key.equals(tempKey)) {
+                IConfigurable oldConfigure = configurableMap.get(key);
+                if (oldConfigure == null) {
+                    continue;
+                }
+                return ConfigurableUtil.compare(oldConfigure, configure);
             }
-            return ConfigurableUtil.compare(oldConfigure, configure);
         }
         return false;
     }
@@ -111,7 +115,7 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
         }
         List<T> result = new ArrayList<T>();
         for (IConfigurable configurable : list) {
-            result.add((T) configurable);
+            result.add((T)configurable);
         }
         return result;
     }
@@ -131,13 +135,11 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
         if (configures != null && configures.isQuerySuccess() && configures.getConfigurables() != null) {
             // List<Configure> configureList = filterConfigure(configures.getConfigure());
             List<IConfigurable> configurables = configures.getConfigurables();
-            List<IConfigurable> configurableList = checkAndUpdateConfigurables(namespace, configurables,
-                    tempType2ConfigurableMap, tempName2ConfigurableMap,
-                    configures.getConfigurables());
+            List<IConfigurable> configurableList = checkAndUpdateConfigurables(namespace, configurables, tempType2ConfigurableMap, tempName2ConfigurableMap, configures.getConfigurables());
             // this.namespace2ConfigurableMap = namespace2ConfigurableMap;
             for (IConfigurable configurable : configurableList) {
-                if (configurable instanceof IAfterConfiguableRefreshListerner) {
-                    ((IAfterConfiguableRefreshListerner) configurable).doProcessAfterRefreshConfigurable(this);
+                if (configurable instanceof IAfterConfigurableRefreshListener) {
+                    ((IAfterConfigurableRefreshListener)configurable).doProcessAfterRefreshConfigurable(this);
                 }
             }
             return true;
@@ -147,7 +149,7 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
 
     @Override
     public <T> T queryConfigurable(String configurableType, String name) {
-        return (T) queryConfigurableByIdent(configurableType, name);
+        return (T)queryConfigurableByIdent(configurableType, name);
     }
 
     protected List<IConfigurable> checkAndUpdateConfigurables(String namespace, List<IConfigurable> configurables,
@@ -178,7 +180,6 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
             String key = entry.getKey();
             IConfigurable value = entry.getValue();
             if (!tempName2ConfigurableMap.containsKey(key)) {
-                it.remove();
                 destroyOldConfigurable(value);
             }
         }
@@ -187,15 +188,16 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
 
     private void destroyOldConfigurable(IConfigurable oldConfigurable) {
         if (AbstractConfigurable.class.isInstance(oldConfigurable)) {
-            ((AbstractConfigurable) oldConfigurable).destroy();
+            ((AbstractConfigurable)oldConfigurable).destroy();
         }
-        String key = MapKeyUtil.createKey(oldConfigurable.getType(), oldConfigurable.getConfigureName());
-        name2ConfigurableMap.remove(key);
+        String key = getConfigureKey(oldConfigurable.getNameSpace(), oldConfigurable.getType(),
+            oldConfigurable.getConfigureName());
+        configurableMap.remove(key);
     }
 
     protected void initConfigurable(IConfigurable configurable) {
         if (AbstractConfigurable.class.isInstance(configurable)) {
-            AbstractConfigurable abstractConfigurable = (AbstractConfigurable) configurable;
+            AbstractConfigurable abstractConfigurable = (AbstractConfigurable)configurable;
             abstractConfigurable.setConfigurableService(this);
         }
 
@@ -276,11 +278,14 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
         }
 
         boolean isUpdate = false;
+        List<IConfigurable> configurableList = new ArrayList<>();
+        configurableList.add(configurable);
 
         String nameKey = MapKeyUtil.createKey(configurable.getType(), configurable.getConfigureName());
         if (this.name2ConfigurableMap.containsKey(nameKey)) {
+            String configureKey = getConfigureKey(namespace, configurable.getType(), configurable.getConfigureName());
             IConfigurable oldConfigurable = this.name2ConfigurableMap.get(nameKey);
-            if (equals(nameKey, configurable)) {
+            if (equals(configureKey, configurableList)) {
                 configurable = oldConfigurable;
                 // name2ConfigurableMap.put(nameKey, name2ConfigurableMap.get(nameKey));
             } else {
@@ -292,6 +297,7 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
             initConfigurable(configurable);
             isUpdate = true;
         }
+        updateConfiguresCache(configurable);
         name2ConfigurableMap.put(nameKey, configurable);
         String typeKey = MapKeyUtil.createKey(configurable.getType());
         // put2Map(namespace2ConfigurableMap, namespace, configurable);
@@ -380,7 +386,7 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
         }
         Map<String, T> result = new HashMap<String, T>();
         for (IConfigurable configurable : configurables) {
-            result.put(configurable.getConfigureName(), (T) configurable);
+            result.put(configurable.getConfigureName(), (T)configurable);
         }
         return result;
     }
@@ -420,7 +426,7 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
         configurable.setNameSpace(namespace);
         configurable.setType(type);
         if (AbstractConfigurable.class.isInstance(configurable)) {
-            AbstractConfigurable abstractConfigurable = (AbstractConfigurable) configurable;
+            AbstractConfigurable abstractConfigurable = (AbstractConfigurable)configurable;
             abstractConfigurable.setConfigurableService(this);
         }
         configurable.toObject(jsonValue);
@@ -443,11 +449,11 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
         try {
             String jsonString = configure.getJsonValue();
             IConfigurable configurable =
-                    createConfigurableFromJson(configure.getNameSpace(), configure.getType(), configure.getName(),
-                            jsonString);
+                createConfigurableFromJson(configure.getNameSpace(), configure.getType(), configure.getName(),
+                    jsonString);
             if (configurable instanceof Entity) {
                 // add by wangtl 20171110 Configurable接口第三方包也在用，故不能Configurable里加接口，只能加到抽象类里，这里强转下
-                Entity abs = (Entity) configurable;
+                Entity abs = (Entity)configurable;
                 abs.setId(configure.getId());
                 abs.setGmtCreate(configure.getGmtCreate());
                 abs.setGmtModified(configure.getGmtModified());
@@ -475,7 +481,7 @@ public abstract class AbstractConfigurableService implements IConfigurableServic
             return;
         }
         String identification =
-                MapKeyUtil.createKey(configurable.getNameSpace(), configurable.getType(), configurable.getConfigureName());
+            MapKeyUtil.createKey(configurable.getNameSpace(), configurable.getType(), configurable.getConfigureName());
         String propertyValue = this.properties.getProperty(identification);
         if (StringUtil.isEmpty(propertyValue)) {
             return;

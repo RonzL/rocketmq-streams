@@ -39,10 +39,7 @@ public abstract class AbstractConfigurable extends Entity implements IConfigurab
 
     protected transient IConfigurableService configurableService;
 
-    /**
-     * 通过它来触发更新，其他字段变更都不会触发更新
-     */
-    protected long updateFlag = 0L;
+    protected long updateFlag = 0;//通过它来触发更新，其他字段变更都不会触发更新
 
     /**
      * 是否完成初始化

@@ -276,13 +276,13 @@ public class DipperMonitor implements IMonitor {
     @Override
     public JSONObject report(String level) {
         JSONObject result = new JSONObject();
-        result.put(MONITOR_NAME, name);
+        result.put(MONTIOR_NAME, name);
         result.put(MONITOR_SUCCESS, success);
         result.put(MONITOR_COST, cost);
 
         //只输出到慢日志文件
         if (level.indexOf(MONITO_SLOW) != -1) {
-            result.put(MONITOR_SLOW, isSlow());
+            result.put(MONTIOR_SLOW, isSlow());
             Object object = this.getValue();
             if (object != null) {
                 if (JSONObject.class.isInstance(object)) {
@@ -309,7 +309,7 @@ public class DipperMonitor implements IMonitor {
             if (sampleData != null) {
                 result.put(MONITOR_SAMPLE_DATA, sampleData);
             }
-            result.put(MONITOR_SLOW, isSlow());
+            result.put(MONTIOR_SLOW, isSlow());
             Object object = this.getValue();
             if (object != null) {
                 if (JSONObject.class.isInstance(object)) {
@@ -343,8 +343,8 @@ public class DipperMonitor implements IMonitor {
         metaData.getMetaDataFields().add(createMetaDataField(MONITOR_ERROR_MSG));
         metaData.getMetaDataFields().add(createMetaDataField(MONITOR_SAMPLE_DATA));
         metaData.getMetaDataFields().add(createMetaDataField(MONITOR_SUCCESS, new BooleanDataType()));
-        metaData.getMetaDataFields().add(createMetaDataField(MONITOR_SLOW, new BooleanDataType()));
-        metaData.getMetaDataFields().add(createMetaDataField(MONITOR_NAME));
+        metaData.getMetaDataFields().add(createMetaDataField(MONTIOR_SLOW, new BooleanDataType()));
+        metaData.getMetaDataFields().add(createMetaDataField(MONTIOR_NAME));
 
     }
 

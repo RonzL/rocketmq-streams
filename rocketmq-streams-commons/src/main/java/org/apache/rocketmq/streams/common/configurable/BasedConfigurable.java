@@ -98,7 +98,7 @@ public class BasedConfigurable extends AbstractConfigurable {
     }
 
     protected void setJsonObject(Class clazz, JSONObject jsonObject) {
-        if (AbstractConfigurable.class.getSuperclass().getName().equals(clazz.getName())) {
+        if (AbstractConfigurable.class.getName().equals(clazz.getName())) {
             return;
         }
         Field[] fields = clazz.getDeclaredFields();
@@ -143,7 +143,7 @@ public class BasedConfigurable extends AbstractConfigurable {
     }
 
     protected void getJsonObject(Class clazz, JSONObject jsonObject) {
-        if (AbstractConfigurable.class.getSuperclass().getName().equals(clazz.getName())) {
+        if (AbstractConfigurable.class.getName().equals(clazz.getName())) {
             return;
         }
         if (Object.class.getName().equals(clazz.getName())) {

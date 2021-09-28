@@ -81,6 +81,14 @@ public abstract class AbstractChannel extends BasedConfigurable implements IChan
 
     }
 
+    @Override public boolean checkpoint(Set<String> splitIds) {
+        return sink.checkpoint(splitIds);
+    }
+
+    @Override public boolean checkpoint(String... splitIds) {
+        return sink.checkpoint(splitIds);
+    }
+
     @Override
     public boolean flush(String... splitIds) {
         return sink.flush(splitIds);
@@ -91,6 +99,18 @@ public abstract class AbstractChannel extends BasedConfigurable implements IChan
         super.setJsonObject(jsonObject);
         jsonObject.put("sink", Base64Utils.encode(InstantiationUtil.serializeObject(sink)));
         jsonObject.put("source", Base64Utils.encode(InstantiationUtil.serializeObject(source)));
+    }
+
+    public void removeSplit(Set<String> splitIds) {
+        if(source instanceof AbstractSource){
+            (( AbstractSource)source).removeSplit(splitIds);
+        }
+    }
+
+    public void addNewSplit(Set<String> splitIds) {
+        if(source instanceof AbstractSource){
+            (( AbstractSource)source).addNewSplit(splitIds);
+        }
     }
 
     @Override

@@ -35,9 +35,10 @@ import org.apache.rocketmq.streams.common.topology.builder.PipelineBuilder;
 import org.apache.rocketmq.streams.common.topology.model.AbstractScript;
 import org.apache.rocketmq.streams.common.topology.stages.ScriptChainStage;
 import org.apache.rocketmq.streams.common.utils.CollectionUtil;
+import org.apache.rocketmq.streams.common.utils.MapKeyUtil;
 import org.apache.rocketmq.streams.script.context.FunctionContext;
 import org.apache.rocketmq.streams.script.operator.expression.ScriptExpression;
-import org.apache.rocketmq.streams.script.optimization.ScriptOptimization;
+import org.apache.rocketmq.streams.script.optimization.performance.ScriptOptimization;
 import org.apache.rocketmq.streams.script.parser.imp.FunctionParser;
 import org.apache.rocketmq.streams.script.service.IScriptExpression;
 import org.apache.rocketmq.streams.script.service.IScriptParamter;
@@ -45,9 +46,7 @@ import org.apache.rocketmq.streams.script.service.IScriptParamter;
 /**
  * * 对外提供的脚本算子，通过输入脚本，来实现业务逻辑 * 脚本存储的成员变量是value字段
  */
-public class FunctionScript extends AbstractScript<List<IMessage>, FunctionContext> implements
-    IStreamOperator<IMessage, List<IMessage>>,
-    IStageBuilder<ChainStage> {
+public class FunctionScript extends AbstractScript<List<IMessage>, FunctionContext> implements IStreamOperator<IMessage, List<IMessage>>, IStageBuilder<ChainStage> {
 
     private static final Log LOG = LogFactory.getLog(FunctionScript.class);
 
@@ -87,11 +86,11 @@ public class FunctionScript extends AbstractScript<List<IMessage>, FunctionConte
             List<IScriptExpression> expressions = this.scriptExpressions;
 
             //表达式优化，在运行中收集信息，减少解析查找的时间
-            ScriptOptimization scriptOptimization = new ScriptOptimization(this.scriptExpressions);
+            ScriptOptimization scriptOptimization = new ScriptOptimization(MapKeyUtil.createKey(getNameSpace(),getConfigureName()),this.scriptExpressions);
             if (scriptOptimization.supportOptimize()) {
-                expressions = scriptOptimization.getScriptOptimizeExprssions();
+                expressions = scriptOptimization.optimize();
             }
-            FunctionScript functionScript = this;
+
             //转化成istreamoperator 接口
             for (IScriptExpression scriptExpression : expressions) {
                 receivers.add((message, context) -> {
